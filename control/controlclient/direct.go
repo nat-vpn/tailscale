@@ -1136,7 +1136,16 @@ func (c *Direct) sendMapRequest(ctx context.Context, isStreaming bool, nu Netmap
 			metricMapResponseKeepAlives.Add(1)
 			continue
 		}
-		if au, ok := resp.DefaultAutoUpdate.Get(); ok {
+		if self := resp.Node; self != nil {
+			if v := self.CapMap[tailcfg.NodeAttrDefaultAutoUpdate]; len(v) > 0 {
+				log.Printf("XXX got %q", v)
+				switch v[0] {
+				case "true", "false":
+					c.autoUpdatePub.Publish(AutoUpdate{c.controlClientID, v[0] == "true"})
+				}
+			}
+		}
+		if au, ok := resp.DeprecatedDefaultAutoUpdate.Get(); ok {
 			c.autoUpdatePub.Publish(AutoUpdate{c.controlClientID, au})
 		}
 

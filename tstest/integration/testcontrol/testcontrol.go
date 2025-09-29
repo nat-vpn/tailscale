@@ -250,6 +250,9 @@ func (s *Server) SendC2N(node key.NodePublic, req *http.Request, onRes func(*htt
 // It reports whether the message was enqueued. That is, it reports whether
 // nodeKeyDst was connected.
 func (s *Server) AddRawMapResponse(nodeKeyDst key.NodePublic, mr *tailcfg.MapResponse) bool {
+	if nodeKeyDst.IsZero() {
+		log.Printf("zero nodeKeyDst")
+	}
 	return s.addDebugMessage(nodeKeyDst, mr)
 }
 
@@ -262,12 +265,17 @@ func (s *Server) addDebugMessage(nodeKeyDst key.NodePublic, msg any) bool {
 	// Now send the update to the channel
 	node := s.nodeLocked(nodeKeyDst)
 	if node == nil {
+		log.Printf("XXX unknown node %v", nodeKeyDst)
 		return false
 	}
 
-	if _, ok := msg.(*tailcfg.MapResponse); ok {
+	typ := updateDebugInjection
+	if mr, ok := msg.(*tailcfg.MapResponse); ok {
 		if s.suppressAutoMapResponses == nil {
 			s.suppressAutoMapResponses = set.Set[key.NodePublic]{}
+		}
+		if mr.Node != nil {
+			typ = updateSelfChanged
 		}
 		s.suppressAutoMapResponses.Add(nodeKeyDst)
 	}
@@ -275,7 +283,8 @@ func (s *Server) addDebugMessage(nodeKeyDst key.NodePublic, msg any) bool {
 	s.msgToSend[nodeKeyDst] = msg
 	nodeID := node.ID
 	oldUpdatesCh := s.updates[nodeID]
-	return sendUpdate(oldUpdatesCh, updateDebugInjection)
+	log.Printf("XXX sending message %v to nodeID %v on %p", msg, nodeID, oldUpdatesCh)
+	return sendUpdate(oldUpdatesCh, typ)
 }
 
 // Mark the Node key of every node as expired
@@ -858,6 +867,7 @@ func (s *Server) updateLocked(source string, peers []tailcfg.NodeID) {
 // has capacity. It reports whether a value was sent.
 func sendUpdate(dst chan<- updateType, updateType updateType) bool {
 	if dst == nil {
+		log.Printf("XXX nil chan")
 		return false
 	}
 	// The dst channel has a buffer size of 1.
@@ -867,6 +877,7 @@ func sendUpdate(dst chan<- updateType, updateType updateType) bool {
 	case dst <- updateType:
 		return true
 	default:
+		log.Printf("XXX select default")
 		return false
 	}
 }

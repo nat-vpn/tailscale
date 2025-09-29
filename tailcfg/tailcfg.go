@@ -172,6 +172,7 @@ type CapabilityVersion int
 //   - 125: 2025-08-11: dnstype.Resolver adds UseWithExitNode field.
 //   - 126: 2025-09-17: Client uses seamless key renewal unless disabled by control (tailscale/corp#31479)
 //   - 127: 2025-09-19: can handle C2N /debug/netmap.
+//   - 128: 2025-09-29: client respects [NodeAttrDefaultAutoUpdate].
 const CurrentCapabilityVersion CapabilityVersion = 127
 
 // ID is an integer ID for a user, node, or login allocated by the
@@ -2129,12 +2130,15 @@ type MapResponse struct {
 	// or nothing to report.
 	ClientVersion *ClientVersion `json:",omitempty"`
 
-	// DefaultAutoUpdate is the default node auto-update setting for this
+	// DeprecatedDefaultAutoUpdate is the default node auto-update setting for this
 	// tailnet. The node is free to opt-in or out locally regardless of this
 	// value. This value is only used on first MapResponse from control, the
 	// auto-update setting doesn't change if the tailnet admin flips the
 	// default after the node registered.
-	DefaultAutoUpdate opt.Bool `json:",omitempty"`
+	//
+	// Deprecated: use NodeAttrDefaultAutoUpdate instead. See
+	// https://github.com/tailscale/tailscale/issues/11502.
+	DeprecatedDefaultAutoUpdate opt.Bool `json:"DefaultAutoUpdate,omitempty"`
 }
 
 // DisplayMessage represents a health state of the node from the control plane's
@@ -2691,6 +2695,15 @@ const (
 	// numbers, apostrophe, spaces, and hyphens. This may not be true for the default.
 	// Values can look like "foo.com" or "Foo's Test Tailnet - Staging".
 	NodeAttrTailnetDisplayName NodeCapability = "tailnet-display-name"
+
+	// NodeAttrDefaultAutoUpdate advertises the default node auto-update setting
+	// for this tailnet. The node is free to opt-in or out locally regardless of
+	// this value. This value is only used on first MapResponse from control,
+	// the auto-update setting doesn't change if the tailnet admin flips the
+	// default after the node registered.
+	//
+	// The value of the key in [NodeCapMap] is a JSON boolean.
+	NodeAttrDefaultAutoUpdate NodeCapability = "default-auto-update"
 )
 
 // SetDNSRequest is a request to add a DNS record.

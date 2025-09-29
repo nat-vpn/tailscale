@@ -1145,8 +1145,17 @@ func TestAutoUpdateDefaults(t *testing.T) {
 
 	sendAndCheckDefault := func(t *testing.T, n *TestNode, send, want bool) {
 		t.Helper()
-		if !env.Control.AddRawMapResponse(n.MustStatus().Self.PublicKey, &tailcfg.MapResponse{
-			DefaultAutoUpdate: opt.NewBool(send),
+		pub := n.MustStatus().Self.PublicKey
+		t.Logf("sending map response with update=%v to %v", send, pub)
+		if !env.Control.AddRawMapResponse(pub, &tailcfg.MapResponse{
+			//DeprecatedDefaultAutoUpdate: opt.NewBool(send),
+			Node: &tailcfg.Node{
+				CapMap: tailcfg.NodeCapMap{
+					tailcfg.NodeAttrDefaultAutoUpdate: []tailcfg.RawMessage{
+						tailcfg.RawMessage(fmt.Sprintf("%t", send)),
+					},
+				},
+			},
 		}) {
 			t.Fatal("failed to send MapResponse to node")
 		}
