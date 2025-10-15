@@ -65,7 +65,6 @@ func init() {
 const (
 	contentTypeHeader   = "Content-Type"
 	grpcBaseContentType = "application/grpc"
-	grantHeaderMaxSize  = 15360 // 15 KiB
 )
 
 // ErrETagMismatch signals that the given
@@ -954,37 +953,13 @@ func (b *LocalBackend) addTailscaleGrantHeader(r *httputil.ProxyRequest) {
 		}
 	}
 
-	serialized, truncated, err := serializeUpToNBytes(peerCapsFiltered, grantHeaderMaxSize)
+	peerCapsSerialized, err := json.Marshal(peerCapsFiltered)
 	if err != nil {
-		b.logf("serve: failed to serialize PeerCapMap: %v", err)
+		b.logf("serve: failed to serialize filtered PeerCapMap: %v", err)
 		return
 	}
-	if truncated {
-		b.logf("serve: serialized PeerCapMap exceeds %d bytes, forwarding truncated PeerCapMap", grantHeaderMaxSize)
-	}
 
-	r.Out.Header.Set("Tailscale-User-Capabilities", encTailscaleHeaderValue(serialized))
-}
-
-// serializeUpToNBytes serializes capMap. It arbitrarily truncates entries from the capMap
-// if the size of the serialized capMap would exceed N bytes.
-func serializeUpToNBytes(capMap tailcfg.PeerCapMap, N int) (string, bool, error) {
-	numBytes := 0
-	capped := false
-	result := tailcfg.PeerCapMap{}
-	for k, v := range capMap {
-		numBytes += len(k) + len(v)
-		if numBytes > N {
-			capped = true
-			break
-		}
-		result[k] = v
-	}
-	marshalled, err := json.Marshal(result)
-	if err != nil {
-		return "", false, err
-	}
-	return string(marshalled), capped, nil
+	r.Out.Header.Set("Tailscale-User-Capabilities", encTailscaleHeaderValue(string(peerCapsSerialized)))
 }
 
 // serveWebHandler is an http.HandlerFunc that maps incoming requests to the
